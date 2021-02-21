@@ -22,9 +22,10 @@ exports.getById = async (req, res) => {
 
 exports.post = async (req, res) => {
   try {
-    const { title, content, publishDate, lastUpdate, status, photo, price, phone, location, email, name} = req.fields;
+    const { title, content, publishDate, lastUpdate, status, price, phone, location, email, name} = req.fields;
     const file = req.files.photo;
     const fileName = file.path.split('/').slice(-1)[0];
+    console.log('fields: ', req.fields)
     
     const newProducts = new Products({ 
       title: title, 
@@ -49,20 +50,10 @@ exports.post = async (req, res) => {
 };
 
 exports.put = async (req, res) => {
-  const { title, content, lastUpdate, status, price, phone, photo, location} = req.body;
   try {
     const prod = await(Products.findById(req.params.id));
     if(prod) {
-      await Products.updateOne({ _id: req.params.id }, { $set: { 
-        title: title,  
-        content: content, 
-        lastUpdate: lastUpdate,
-        status: status,
-        price: price,
-        phone: phone,
-        photo: photo,
-        location: location,
-      }});
+      await Products.updateOne({ _id: req.params.id }, { $set: {...req.fields}});
       res.json({ message: 'OK' });
     }
     else res.status(404).json({ message: 'Not found...' });

@@ -1,19 +1,26 @@
 const express = require('express');
+const router = express.Router();
 const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 const productsRoutes = require('./routes/products.routes');
 const formidable = require('express-formidable');
 const uniqid = require('uniqid');
+const passport = require('passport');
+const session = require('express-session');
+const passportSetup = require('./config/passport');
+
+const adminEmail = 'wojciecholejnik5@gmail.com';
 
 
-// start express server
 const app = express();
-const port = process.env.PORT || 9000;
-const server = app.listen(port, () => {
-  console.log('Server is running on port: ' + port);
-});
 
+// init session mechanism
+app.use(session({ secret: 'anything' }));
+
+// init passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // connect to DB
 const dbURI = 'mongodb+srv://wwwojtasss:wwwojtasss@cluster0.bpoyn.mongodb.net/BulletinDB?retryWrites=true&w=majority';
@@ -38,15 +45,45 @@ app.use(formidable({uploadDir: './public/uploads/'}, [ {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '/public')));
+app.use(express.static(path.join(__dirname, '/client/build')));
 
+// routes
 app.use('/api', productsRoutes);
+app.use('/auth', require('./routes/auth.routes'));
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['email', 'profile'] }));
+
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/user/no-permission' }),
+  (req, res) => {
+    res.redirect('/');
+  }
+);
+app.get('/users', function(req, res, next) {
+   req.user ? res.json({
+     email: req.user.emails[0].value,
+     name: req.user.name.givenName,
+     role: req.user.emails[0].value === adminEmail ? 'admin' : 'user',
+     avatar: req.user.photos[ 0 ].value, 
+   }) : res.json({
+     email: null,
+     name: null,
+     avatar: null,
+     role: 'notLogged',
+   });
+ });
+ 
+
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname + '/client/build/index.html'));
+});
+
+
 app.use((req, res) => {
   res.status(404).send({ message: 'Not found...' });
 })
 
-
-
-
-
-
-module.exports = server;
+const port = process.env.PORT || 9000;
+app.listen(port, () => {
+  console.log('Server is running on port: ' + port);
+});
